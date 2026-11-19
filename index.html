@@ -8,7 +8,7 @@
 <title>고민보다고 | 충북대학교 접근성 지도</title>
 <link rel="icon" href="logo-app.png" type="image/png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=33">
+<link rel="stylesheet" href="style.css?v=34">
 </head>
 <body>
 <a class="skip" href="#explore">지도 탐색으로 건너뛰기</a>
@@ -16,7 +16,7 @@
   <div class="header-inner">
     <a class="brand" href="#top" aria-label="고민보다고 홈"><img src="logo-app.png" alt="" width="36" height="36"><span>고민보다고</span></a>
     <nav aria-label="주 메뉴"><a href="#explore">지도 · 길찾기</a><a href="#research">연구 자료</a></nav>
-    <span class="version">CBNU · V3.3</span>
+    <span class="version">CBNU · V3.4</span>
   </div>
 </header>
 <main id="top">
@@ -48,8 +48,8 @@
  </div>
  <div class="planner-options"><label><input id="allowHistory" type="checkbox" checked>2016년 자료 포함 (현재 미확인)</label><details><summary>경로 설정</summary><div class="planner-extra"><label><input id="allowSteep" type="checkbox">급경사·비추천 구간도 참고 경로 후보에 포함</label><label><input id="allowGaps" type="checkbox">6m 이내 근사 연결 허용 (연결 미확인)</label></div></details><button id="clearRoute" type="button" class="text-button">길찾기 초기화</button></div>
  <p id="plannerMessage" class="planner-message" role="status">지도에서 출발지와 도착지를 지정하거나, 조사 경로 이름을 선택해 주세요. 건물 검색 결과는 주변 조사선의 대표 지점입니다.</p>
- <div id="plannerResult" class="planner-result" hidden aria-live="polite"></div>
- <p class="planner-note">등록된 조사선만 이용하는 모의 길찾기입니다. 실제 출입구, 계단, 단차, 공사 및 연결 상태는 확인되지 않았습니다. 이동 전 현장 확인이 필요합니다.</p>
+ <div id="fallbackActions" class="fallback-actions" hidden></div><label class="fallback-opt"><input id="autoFallback" type="checkbox"> 조사 경로가 없으면 일반 도보 경로를 자동으로 요청합니다.</label><p class="planner-note privacy-note">일반 도보 경로 요청 시 출발·도착 좌표가 외부 OSRM/FOSSGIS 서버에 전송되고 서버 로그에 기록될 수 있습니다. <a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener noreferrer">서비스 및 개인정보 안내 ↗</a></p>
+ <p class="planner-note">조사 경로를 우선 탐색합니다. 일반 도보 대체 경로의 경사도·계단·휠체어 통행 가능 여부는 미확인입니다. 이동 전 현장을 확인해 주세요.</p>
 </section>
     <div class="workspace">
       <section class="map-panel" aria-label="캠퍼스 지도">
@@ -64,12 +64,12 @@
             <button id="fit" class="icon-button" title="전체 보기" aria-label="전체 보기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/></svg></button>
           </div>
         </div>
-        <div id="map" aria-label="조사 구간 지도"></div>
+        <div id="mapFrame" class="map-frame"><div id="map" aria-label="조사 구간 지도"></div><div id="mapRouteBadge" class="map-route-badge" hidden></div></div><div id="plannerResult" class="planner-result map-plan-result" hidden aria-live="polite"></div>
         <div class="map-bottom">
           <div class="legend-row"><strong>직접 조사 · 굵은 실선</strong><div class="legend"><span><i class="line green"></i>추천</span><span><i class="line red"></i>비추천</span><span><i class="line amber"></i>확인 필요</span><span><i class="line gray"></i>미평가</span></div></div>
           <div class="legend-row"><strong>2016년 연구 · 가는 실선</strong><div class="legend"><span><i class="line hist-low"></i>5.56% 이하</span><span><i class="line hist-mid"></i>5.56% 초과~8.33%</span><span><i class="line hist-high"></i>8.33% 초과</span></div></div>
           <div id="entranceLegend" class="entrance-legend" hidden><strong>과거 출입구</strong><span class="e-easy">● 진입 무난</span><span class="e-possible">△ 진입 가능</span><span class="e-hard">× 진입 곤란/불가능</span></div>
-          <div class="legend-row route-result-legend" id="routeResultLegend" hidden><strong>길찾기</strong><div class="legend"><span><i class="line planned"></i>참고 경로</span><span><i class="line gap"></i>미확인 연결</span></div></div>
+          <div class="legend-row route-result-legend" id="routeResultLegend" hidden><strong>길찾기</strong><div class="legend"><span><i class="line planned"></i>선택한 참고 경로</span><span><i class="line gap"></i>미확인 연결</span></div></div>
           <p id="mapStatus" role="status" class="map-status">조사 구간을 불러오는 중입니다.</p>
         </div>
       </section>
@@ -97,12 +97,13 @@
     <div class="research-copy"><p class="eyebrow">RESEARCH &amp; METHOD</p><h2 id="research-heading">두 시점, 하나의 지도.</h2><p>2026년 직접 조사 자료와 2016년 선행연구의 접근성 지도를 구분하여 제공합니다. 선행연구의 Figure 3에서 판독할 수 있는 보행로와 출입구 일부를 현재 지도에 근사 위치로 옮겼습니다.</p><a class="research-link" href="https://doi.org/10.6107/JKHA.2017.28.2.023" target="_blank" rel="noopener noreferrer">선행연구 원문 보기 ↗</a><p class="citation">문소희·한가람·이현정 (2017). 한국주거학회논문집, 28(2), 23–33.</p></div>
     <div class="study-card"><h3>2016년 연구의 보행 경사도</h3><p class="study-total"><b>168</b>개 세부 조사 구간</p><div class="studybar" role="img" aria-label="완만 70.8%, 중간 11.3%, 급경사 17.9%"><i style="width:70.8%"></i><i style="width:11.3%"></i><i style="width:17.9%"></i></div><div class="study-row"><span><i class="dot low"></i>완만</span><b>119개 · 70.8%</b></div><div class="study-row"><span><i class="dot mid"></i>중간</span><b>19개 · 11.3%</b></div><div class="study-row"><span><i class="dot high"></i>급경사</span><b>30개 · 17.9%</b></div><p class="citation">원논문의 조사 구간 수와 지도에 옮긴 선분 수는 동일하지 않습니다.</p></div>
   </section>
-  <details class="notice" open><summary>자료의 한계 및 이용 안내</summary><div><p>본 서비스는 학생 프로젝트로, 안전한 통행을 보장하는 내비게이션이 아닙니다. 선행연구는 학교명을 C대학교로 익명 처리하였으며, 도면 형태를 대조하여 충북대학교 사례로 가정하였습니다. 과거 경사 등급 및 출입구 위치에는 판독·정합 오차가 있을 수 있고, 캠퍼스 환경도 변경되었을 수 있습니다.</p><p>평균 경사도만으로 현재 통행 가능 여부를 판단할 수 없습니다. 실제 이용 전 단차, 최대 경사, 노면, 공사 및 연결 동선을 현장에서 확인해 주시기 바랍니다. 현재 위치는 브라우저의 위치 권한을 통해 제공되며, 이 사이트는 위치 기록을 별도로 저장하지 않습니다.</p></div></details>
+  <details class="notice" open><summary>자료의 한계 및 이용 안내</summary><div><p>본 서비스는 학생 프로젝트로, 안전한 통행을 보장하는 내비게이션이 아닙니다. 선행연구는 학교명을 C대학교로 익명 처리하였으며, 도면 형태를 대조하여 충북대학교 사례로 가정하였습니다. 과거 경사 등급 및 출입구 위치에는 판독·정합 오차가 있을 수 있고, 캠퍼스 환경도 변경되었을 수 있습니다.</p><p>평균 경사도만으로 현재 통행 가능 여부를 판단할 수 없습니다. 실제 이용 전 단차, 최대 경사, 노면, 공사 및 연결 동선을 현장에서 확인해 주시기 바랍니다. 현재 위치는 브라우저의 위치 권한을 통해 제공되며, 이 사이트는 위치 기록을 별도로 저장하지 않습니다. 일반 도보 대체 경로 요청 시 선택한 좌표가 OSRM/FOSSGIS 서버에 전송되며, 서버에 기록될 수 있습니다. 네이버 지도 앱으로 열기를 선택하면 해당 앱에 출발·도착 위치가 전달됩니다.</p></div></details>
 </main>
 <footer class="site-footer"><div><strong>고민보다고</strong><span>충북대학교 무장애 보행환경 조사 프로젝트</span></div><p>제작자 : 곽승해, 김지수, 김종현, 최아란</p></footer>
 <noscript>지도를 이용하시려면 JavaScript를 활성화해 주세요.</noscript>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="routing.js?v=33" defer></script>
-<script src="script.js?v=33" defer></script>
+<script src="routing.js?v=34" defer></script>
+<script src="external-routing.js?v=34" defer></script>
+<script src="script.js?v=34" defer></script>
 </body>
 </html>
