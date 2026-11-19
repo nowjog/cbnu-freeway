@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CBNU FREE WAY</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div>
+        <h1>CBNU FREE WAY</h1>
+        <p>충북대학교 휠체어 이용자 추천 경로 지도</p>
+      </div>
+      <div class="btn-group">
+        <button id="showAll">전체 경로 보기</button>
+        <button id="showRecommended">추천 경로만 보기</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="map-section">
+        <div id="map"></div>
+      </section>
+
+      <aside class="sidebar">
+        <h2>경로 정보</h2>
+        <p class="guide">
+          지도의 경로를 클릭하면 상세 정보가 보여.
+        </p>
+
+        <div class="legend">
+          <div class="legend-item">
+            <span class="color green"></span>
+            <span>추천 경로</span>
+          </div>
+          <div class="legend-item">
+            <span class="color red"></span>
+            <span>비추천 경로</span>
+          </div>
+        </div>
+
+        <div id="routeList" class="route-list"></div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
