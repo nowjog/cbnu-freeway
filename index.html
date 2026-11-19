@@ -8,15 +8,15 @@
 <title>고민보다고 | 충북대학교 접근성 지도</title>
 <link rel="icon" href="logo-app.png" type="image/png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=32">
+<link rel="stylesheet" href="style.css?v=33">
 </head>
 <body>
 <a class="skip" href="#explore">지도 탐색으로 건너뛰기</a>
 <header class="site-header">
   <div class="header-inner">
     <a class="brand" href="#top" aria-label="고민보다고 홈"><img src="logo-app.png" alt="" width="36" height="36"><span>고민보다고</span></a>
-    <nav aria-label="주 메뉴"><a href="#explore">지도 탐색</a><a href="#research">연구 자료</a></nav>
-    <span class="version">CBNU · V3.2</span>
+    <nav aria-label="주 메뉴"><a href="#explore">지도 · 길찾기</a><a href="#research">연구 자료</a></nav>
+    <span class="version">CBNU · V3.3</span>
   </div>
 </header>
 <main id="top">
@@ -33,10 +33,24 @@
   </section>
   <section id="explore" class="explore" aria-labelledby="explore-heading">
     <div class="section-head">
-      <div><p class="eyebrow">CAMPUS MAP</p><h2 id="explore-heading">나에게 맞는 길.</h2><p class="section-description">지도에서 조사 구간을 선택하여 상세 정보를 확인해 보세요.</p></div>
+      <div><p class="eyebrow">CAMPUS MAP</p><h2 id="explore-heading">나에게 맞는 길.</h2><p class="section-description">경로를 선택하여 정보를 확인하거나, 출발지와 도착지를 지정하여 경사를 고려한 참고 경로를 탐색해 보세요.</p></div>
       <div class="counts" aria-label="데이터 현황"><div><b id="total">–</b><span>실측 경로</span></div><div><b id="historicalCount">–</b><span>과거 선분</span></div><div><b id="entranceCount">–</b><span>과거 출입구</span></div></div>
     </div>
-    <div class="map-disclaimer"><span class="info-icon" aria-hidden="true">i</span><p>2016년 선행연구의 점선과 출입구는 근사 위치이며 현재 상태가 확인되지 않았습니다. 실제 이동 전 현장 확인이 필요합니다.</p><a href="#research">자료 안내</a></div>
+    <div class="map-disclaimer"><span class="info-icon" aria-hidden="true">i</span><p>2016년 선행연구의 가는 실선과 출입구는 근사 위치이며 현재 상태가 확인되지 않았습니다. 실제 이동 전 현장 확인이 필요합니다.</p><a href="#research">자료 안내</a></div>
+<section class="planner" aria-labelledby="planner-title">
+ <div class="planner-head"><div><p class="eyebrow">ROUTE PLANNER</p><h3 id="planner-title">길찾기</h3></div><span class="planner-label">경사 우선 · 참고용</span></div>
+ <div class="planner-fields">
+  <div class="point-field"><label for="startInput"><i class="point-dot start-dot"></i>출발지</label><input id="startInput" list="routePlaces" placeholder="출발지 검색 또는 지도 선택" autocomplete="off"><div class="point-actions"><button id="startPick" type="button" aria-pressed="false">지도에서 선택</button><button id="startGPS" type="button">◎ 내 위치</button></div></div>
+  <button id="swapPoints" class="swap-button" type="button" aria-label="출발지와 도착지 바꾸기" title="출발지와 도착지 바꾸기">⇄</button>
+  <div class="point-field"><label for="endInput"><i class="point-dot end-dot"></i>도착지</label><input id="endInput" list="routePlaces" placeholder="목적지 검색 또는 지도 선택" autocomplete="off"><div class="point-actions"><button id="endPick" type="button" aria-pressed="false">지도에서 선택</button></div></div>
+  <datalist id="routePlaces"></datalist>
+  <button id="findRoute" type="button" class="find-button" disabled>경사 우선 경로 찾기 <span aria-hidden="true">→</span></button>
+ </div>
+ <div class="planner-options"><label><input id="allowHistory" type="checkbox" checked>2016년 자료 포함 (현재 미확인)</label><details><summary>경로 설정</summary><div class="planner-extra"><label><input id="allowSteep" type="checkbox">급경사·비추천 구간도 참고 경로 후보에 포함</label><label><input id="allowGaps" type="checkbox">6m 이내 근사 연결 허용 (연결 미확인)</label></div></details><button id="clearRoute" type="button" class="text-button">길찾기 초기화</button></div>
+ <p id="plannerMessage" class="planner-message" role="status">지도에서 출발지와 도착지를 지정하거나, 조사 경로 이름을 선택해 주세요. 건물 검색 결과는 주변 조사선의 대표 지점입니다.</p>
+ <div id="plannerResult" class="planner-result" hidden aria-live="polite"></div>
+ <p class="planner-note">등록된 조사선만 이용하는 모의 길찾기입니다. 실제 출입구, 계단, 단차, 공사 및 연결 상태는 확인되지 않았습니다. 이동 전 현장 확인이 필요합니다.</p>
+</section>
     <div class="workspace">
       <section class="map-panel" aria-label="캠퍼스 지도">
         <div class="map-toolbar">
@@ -52,9 +66,10 @@
         </div>
         <div id="map" aria-label="조사 구간 지도"></div>
         <div class="map-bottom">
-          <div class="legend-row"><strong>직접 조사</strong><div class="legend"><span><i class="line green"></i>추천</span><span><i class="line red"></i>비추천</span><span><i class="line amber"></i>확인 필요</span><span><i class="line gray"></i>미평가</span></div></div>
-          <div class="legend-row"><strong>2016년 연구</strong><div class="legend"><span><i class="line hist-low"></i>5.56% 이하</span><span><i class="line hist-mid"></i>5.56% 초과~8.33%</span><span><i class="line hist-high"></i>8.33% 초과</span></div></div>
+          <div class="legend-row"><strong>직접 조사 · 굵은 실선</strong><div class="legend"><span><i class="line green"></i>추천</span><span><i class="line red"></i>비추천</span><span><i class="line amber"></i>확인 필요</span><span><i class="line gray"></i>미평가</span></div></div>
+          <div class="legend-row"><strong>2016년 연구 · 가는 실선</strong><div class="legend"><span><i class="line hist-low"></i>5.56% 이하</span><span><i class="line hist-mid"></i>5.56% 초과~8.33%</span><span><i class="line hist-high"></i>8.33% 초과</span></div></div>
           <div id="entranceLegend" class="entrance-legend" hidden><strong>과거 출입구</strong><span class="e-easy">● 진입 무난</span><span class="e-possible">△ 진입 가능</span><span class="e-hard">× 진입 곤란/불가능</span></div>
+          <div class="legend-row route-result-legend" id="routeResultLegend" hidden><strong>길찾기</strong><div class="legend"><span><i class="line planned"></i>참고 경로</span><span><i class="line gap"></i>미확인 연결</span></div></div>
           <p id="mapStatus" role="status" class="map-status">조사 구간을 불러오는 중입니다.</p>
         </div>
       </section>
@@ -87,6 +102,7 @@
 <footer class="site-footer"><div><strong>고민보다고</strong><span>충북대학교 무장애 보행환경 조사 프로젝트</span></div><p>제작자 : 곽승해, 김지수, 김종현, 최아란</p></footer>
 <noscript>지도를 이용하시려면 JavaScript를 활성화해 주세요.</noscript>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="script.js?v=32" defer></script>
+<script src="routing.js?v=33" defer></script>
+<script src="script.js?v=33" defer></script>
 </body>
 </html>
