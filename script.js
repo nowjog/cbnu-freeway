@@ -1,133 +1,45 @@
-const map = L.map("map").setView([36.6285, 127.4588], 16);
-
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
-
-let allRoutesLayer;
-let allData = [];
-
-function getRouteColor(recommendation) {
-  return recommendation === "추천" ? "#2e9d63" : "#d94b4b";
-}
-
-function routeStyle(feature) {
-  const recommendation = feature.properties["추천여부"];
-  return {
-    color: getRouteColor(recommendation),
-    weight: 6,
-    opacity: 0.9
-  };
-}
-
-function createPopupContent(props) {
-  return `
-    <div style="font-size:14px; line-height:1.6;">
-      <strong>${props["이름"] || "이름 없음"}</strong><br>
-      표면 상태: ${props["표면"] || "정보 없음"}<br>
-      추천 여부: ${props["추천여부"] || "정보 없음"}
-    </div>
-  `;
-}
-
-function renderRouteList(data) {
-  const routeList = document.getElementById("routeList");
-  routeList.innerHTML = "";
-
-  data.forEach(feature => {
-    const props = feature.properties;
-    const recommended = props["추천여부"] === "추천";
-    const badgeClass = recommended ? "green" : "red";
-
-    const card = document.createElement("div");
-    card.className = "route-card";
-    card.innerHTML = `
-      <h3>${props["이름"] || "이름 없음"}</h3>
-      <div class="badge ${badgeClass}">${props["추천여부"] || "정보 없음"}</div>
-      <p><strong>표면 상태:</strong> ${props["표면"] || "정보 없음"}</p>
-    `;
-
-    routeList.appendChild(card);
-  });
-}
-
-function loadAllRoutes() {
-  fetch("routes.geojson")
-    .then(response => response.json())
-    .then(data => {
-      allData = data.features;
-
-      allRoutesLayer = L.geoJSON(data, {
-        style: routeStyle,
-        onEachFeature: function (feature, layer) {
-          layer.bindPopup(createPopupContent(feature.properties));
-        }
-      }).addTo(map);
-
-      map.fitBounds(allRoutesLayer.getBounds(), { padding: [30, 30] });
-      renderRouteList(allData);
-    })
-    .catch(error => {
-      console.error("GeoJSON 불러오기 실패:", error);
-      alert("routes.geojson 파일을 불러오지 못했어.");
-    });
-}
-
-function showRecommendedRoutesOnly() {
-  if (allRoutesLayer) {
-    map.removeLayer(allRoutesLayer);
-  }
-
-  const recommendedFeatures = allData.filter(
-    feature => feature.properties["추천여부"] === "추천"
-  );
-
-  allRoutesLayer = L.geoJSON(
-    {
-      type: "FeatureCollection",
-      features: recommendedFeatures
-    },
-    {
-      style: routeStyle,
-      onEachFeature: function (feature, layer) {
-        layer.bindPopup(createPopupContent(feature.properties));
-      }
-    }
-  ).addTo(map);
-
-  if (recommendedFeatures.length > 0) {
-    map.fitBounds(allRoutesLayer.getBounds(), { padding: [30, 30] });
-  }
-
-  renderRouteList(recommendedFeatures);
-}
-
-function showAllRoutes() {
-  if (allRoutesLayer) {
-    map.removeLayer(allRoutesLayer);
-  }
-
-  allRoutesLayer = L.geoJSON(
-    {
-      type: "FeatureCollection",
-      features: allData
-    },
-    {
-      style: routeStyle,
-      onEachFeature: function (feature, layer) {
-        layer.bindPopup(createPopupContent(feature.properties));
-      }
-    }
-  ).addTo(map);
-
-  if (allData.length > 0) {
-    map.fitBounds(allRoutesLayer.getBounds(), { padding: [30, 30] });
-  }
-
-  renderRouteList(allData);
-}
-
-document.getElementById("showRecommended").addEventListener("click", showRecommendedRoutesOnly);
-document.getElementById("showAll").addEventListener("click", showAllRoutes);
-
-loadAllRoutes();
+'use strict';
+const $=id=>document.getElementById(id);
+const text=v=>v===null||v===undefined||String(v).trim()===''?'미입력':typeof v==='object'?JSON.stringify(v):String(v);
+const val=(p,...keys)=>{for(const k of keys){if(p[k]!==null&&p[k]!==undefined&&String(p[k]).trim()!=='')return p[k]}return undefined};
+const numeric=v=>{if(v===undefined||v===null||String(v).trim()==='')return NaN;return Number(String(v).replace(/[°%,\s]/g,''))};
+const numText=(v,suffix)=>{const n=numeric(v);return Number.isFinite(n)?`${n.toFixed(2).replace(/\.?0+$/,'')}${suffix}`:text(v)};
+const degreeKeys=['평균경사(°)','평균경사도','평균 경사도','평균경사각도'];
+const pctKeys=['평균경사(%)','평균경사율','평균 경사율'];
+const ratioKeys=['평균경사(분수)','평균경사분수','경사분수'];
+const nameKeys=['경로명','이름','name'];const surfaceKeys=['포장상태','표면','노면'];
+const recKeys=['추천여부','추천 여부','recommended'];const imageKeys=['사진','사진경로','현장사진','image'];
+const skip=new Set([...degreeKeys,...pctKeys,...ratioKeys,...nameKeys,...surfaceKeys,...recKeys,...imageKeys,'stroke','stroke-width','stroke-opacity','fill','fill-opacity','marker-color','marker-size','marker-symbol','']);
+const labelNames={recommended:'추천',notrecommended:'비추천',review:'확인 필요',unknown:'미평가'};
+const colors={recommended:'#188650',notrecommended:'#cf4949',review:'#d28a22',unknown:'#788481'};
+const dash={recommended:null,notrecommended:'10 6',review:'5 6',unknown:'2 7'};
+function model(f,i){const p=f.properties||{},name=text(val(p,...nameKeys)),degree=val(p,...degreeKeys),percent=val(p,...pctKeys),ratio=val(p,...ratioKeys),surface=val(p,...surfaceKeys),raw=val(p,...recKeys),pct=numeric(percent),deg=numeric(degree),warnings=[];
+  const ratioVal=String(ratio??'').match(/^1\s*[/:]\s*(\d+(?:\.\d+)?)$/);
+  if(Number.isFinite(pct)&&ratioVal&&Math.abs(100/pct-Number(ratioVal[1]))>Math.max(.3, (100/pct)*.05))warnings.push('입력된 경사율과 분수의 환산값이 일치하지 않습니다. 원자료 확인 필요.');
+  if(Number.isFinite(pct)&&Number.isFinite(deg)&&Math.abs(Math.tan(deg*Math.PI/180)*100-pct)>.15)warnings.push('경사 각도와 경사율의 환산값 확인 필요.');
+  if(/^\s*1\s*\/\s*\d/.test(String(surface??'')))warnings.push('포장상태에 경사 분수가 입력되어 있습니다. 실제 포장재 확인 필요.');
+  const rec=String(raw??'').trim();let status=rec==='추천'||raw===true?'recommended':rec==='비추천'||raw===false?'notrecommended':rec==='주의'?'review':'unknown';
+  if(status==='recommended'&&Number.isFinite(pct)&&pct>8.33){warnings.push('원자료는 추천이지만 평균 경사율이 프로젝트 검토 기준(8.33%)을 초과합니다.');status='review'}
+  if(warnings.length&&status==='recommended')status='review';
+  return {f,i,p,name:name==='미입력'?`조사 구간 ${i+1}`:name,degree,percent,ratio,surface,raw,status,pct,warnings,extra:Object.entries(p).filter(([k,v])=>!skip.has(k)&&k.trim()&&v!==null&&String(v).trim()!=='')};}
+function el(tag,cls,content){const e=document.createElement(tag);if(cls)e.className=cls;if(content!==undefined)e.textContent=content;return e}
+function appendPairs(parent,pairs){const dl=el('dl');for(const [k,v] of pairs){dl.append(el('dt','',k),el('dd','',text(v)))}parent.append(dl)}
+function photo(parent,r){const src=val(r.p,...imageKeys);if(typeof src!=='string'||!src.trim())return;try{const u=new URL(src,location.href);if(!['http:','https:'].includes(u.protocol))return;const img=el('img');img.src=u.href;img.alt=`${r.name} 현장 사진`;img.loading='lazy';img.addEventListener('error',()=>img.replaceWith(el('p','meta','사진을 불러오지 못했습니다. 파일 경로를 확인하세요.')));parent.append(img)}catch{}}
+function warnings(parent,r){for(const w of r.warnings)parent.append(el('div','warn',w))}
+function rawPairs(r){return [['포장상태',r.surface],['원자료 추천여부',r.raw],...r.extra]}
+function popup(r){const p=el('div','popup');p.append(el('h3','',r.name),el('span',`status ${r.status}`,labelNames[r.status]));appendPairs(p,[['평균 경사(°)',numText(r.degree,'°')],['평균 경사(%)',numText(r.percent,'%')],['평균 경사(분수)',r.ratio],...rawPairs(r)]);warnings(p,r);photo(p,r);return p}
+let routes=[],visible=[],map,baseStreet,baseSatellite,activeBase,lines,selected=null,filter='all',gpsGroup;
+const layers=new Map();
+function initMap(){if(!window.L){$('mapStatus').textContent='지도 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.';return}map=L.map('map',{maxZoom:21}).setView([36.6285,127.4588],16);baseStreet=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxNativeZoom:19,maxZoom:21,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'});baseSatellite=L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21,attribution:'Imagery © Esri, Vantor (Maxar), Earthstar Geographics, GIS User Community'});activeBase=baseStreet.addTo(map);lines=L.featureGroup().addTo(map);gpsGroup=L.layerGroup().addTo(map);L.control.scale({imperial:false}).addTo(map);for(const base of [baseStreet,baseSatellite])base.on('tileerror',()=>{$('mapStatus').textContent='일부 배경지도를 불러오지 못했습니다. 인터넷 연결 또는 지도 종류를 확인하세요.'});}
+function style(r){return {color:colors[r.status],weight:r.i===selected?9:6,opacity:1,dashArray:dash[r.status],lineCap:'round',lineJoin:'round'}}
+function draw(){if(!map)return;lines.clearLayers();layers.clear();for(const r of visible){const g=L.geoJSON(r.f,{style:()=>style(r)});g.eachLayer(l=>{l.bindPopup(()=>popup(r));l.on('click',()=>choose(r.i,false));layers.set(r.i,l)});lines.addLayer(g)}}
+function fit(){if(map&&lines.getLayers().length)map.fitBounds(lines.getBounds(),{padding:[40,40],maxZoom:19})}
+function card(r){const a=el('article','route-card'+(selected===r.i?' selected':''));a.dataset.id=r.i;const top=el('div','route-top');top.append(el('h3','',r.name),el('span',`status ${r.status}`,labelNames[r.status]));a.append(top);const metrics=el('div','metrics');for(const [k,v] of [['평균 각도',numText(r.degree,'°')],['경사율',numText(r.percent,'%')],['경사 분수',text(r.ratio)]]){const m=el('div','metric');m.append(el('span','',k),el('b','',v));metrics.append(m)}a.append(metrics,el('p','meta',`포장상태 · ${text(r.surface)}`));warnings(a,r);const d=el('details','details');d.append(el('summary','','상세 조사 정보'));appendPairs(d,rawPairs(r));photo(d,r);a.append(d);const b=el('button','focus','지도에서 보기 ↗');b.type='button';b.addEventListener('click',()=>choose(r.i,true));a.append(b);return a}
+function render(){const con=$('routeList');con.replaceChildren();for(const r of visible)con.append(card(r));if(!visible.length)con.append(el('p','empty','조건에 맞는 조사 구간이 없습니다. 검색어 또는 필터를 변경해 보세요.'));$('resultCount').textContent=`${visible.length}개 구간 표시`}
+function choose(i,move){selected=i;document.querySelectorAll('.route-card').forEach(c=>c.classList.toggle('selected',Number(c.dataset.id)===i));for(const r of visible){const l=layers.get(r.i);if(l)l.setStyle(style(r))}const l=layers.get(i);if(l&&move){map.fitBounds(l.getBounds(),{padding:[55,55],maxZoom:20});l.openPopup();if(matchMedia('(max-width:820px)').matches)$('map').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'})}else if(!move){const c=document.querySelector(`.route-card[data-id="${i}"]`);if(c){const box=$('routeList');if(box.scrollHeight>box.clientHeight)box.scrollTop=c.offsetTop-box.offsetTop}}}
+function update(doFit=false){const q=$('search').value.trim().toLowerCase(),lim=$('slope').value,order=$('sort').value;visible=routes.filter(r=>(!q||r.name.toLowerCase().includes(q))&&(filter==='all'||(filter==='recommended'?r.status==='recommended':r.status!=='recommended'))&&(lim==='all'||Number.isFinite(r.pct)&&r.pct<=Number(lim)));if(order==='slope')visible.sort((a,b)=>(Number.isFinite(a.pct)?a.pct:Infinity)-(Number.isFinite(b.pct)?b.pct:Infinity)||a.i-b.i);if(order==='name')visible.sort((a,b)=>a.name.localeCompare(b.name,'ko'));if(!visible.some(r=>r.i===selected))selected=null;draw();render();if(doFit)fit()}
+function setFilter(next){filter=next;document.querySelectorAll('[data-filter]').forEach(b=>{const active=b.dataset.filter===filter;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});update()}
+function setBase(next){if(!map)return;map.removeLayer(activeBase);activeBase=(next==='street'?baseStreet:baseSatellite).addTo(map);for(const id of ['street','satellite']){$(id).classList.toggle('active',id===next);$(id).setAttribute('aria-pressed',String(id===next))}$('mapStatus').textContent='선을 누르면 상세 정보를 확인할 수 있습니다.'}
+function locate(){if(!map)return;if(!navigator.geolocation){$('mapStatus').textContent='이 브라우저는 위치 기능을 지원하지 않습니다.';return}$('locate').disabled=true;$('mapStatus').textContent='현재 위치를 확인하는 중…';navigator.geolocation.getCurrentPosition(pos=>{$('locate').disabled=false;const {latitude,longitude,accuracy}=pos.coords;gpsGroup.clearLayers();const ll=[latitude,longitude];L.circle(ll,{radius:accuracy,color:'#247bd4',weight:1,fillOpacity:.10,interactive:false}).addTo(gpsGroup);L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#247bd4',fillOpacity:1}).bindPopup('현재 위치 (GPS 참고용)').addTo(gpsGroup);map.setView(ll,18);$('mapStatus').textContent=`현재 위치 · 예상 오차 약 ${Math.round(accuracy)}m. 실제 통행 가능 여부는 현장에서 확인하세요.`},e=>{$('locate').disabled=false;$('mapStatus').textContent=e.code===1?'위치 권한이 거부되었습니다. 브라우저 설정에서 위치를 허용해 주세요.':'현재 위치를 확인하지 못했습니다. 실외 또는 위치 설정에서 다시 시도해 주세요.'},{enableHighAccuracy:true,timeout:12000,maximumAge:0})}
+async function load(){try{const response=await fetch('routes.geojson',{cache:'no-cache'});if(!response.ok)throw Error('HTTP '+response.status);const d=await response.json();if(d.type!=='FeatureCollection'||!Array.isArray(d.features))throw Error('FeatureCollection 형식 필요');routes=d.features.filter(f=>['LineString','MultiLineString'].includes(f.geometry?.type)).map(model);$('total').textContent=routes.length;$('recommended').textContent=routes.filter(r=>r.status==='recommended').length;$('caution').textContent=routes.filter(r=>r.status!=='recommended').length;update(true)}catch(e){$('resultCount').textContent='데이터 오류';$('routeList').replaceChildren(el('p','empty','routes.geojson을 불러오지 못했습니다. 파일명과 JSON 형식을 확인해 주세요.'));console.error(e)}}
+initMap();$('search').addEventListener('input',()=>update());$('slope').addEventListener('change',()=>update());$('sort').addEventListener('change',()=>update());document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>setFilter(b.dataset.filter)));$('reset').addEventListener('click',()=>{$('search').value='';$('slope').value='all';$('sort').value='original';setFilter('all');fit()});$('fit').addEventListener('click',fit);$('street').addEventListener('click',()=>setBase('street'));$('satellite').addEventListener('click',()=>setBase('satellite'));$('locate').addEventListener('click',locate);load();
